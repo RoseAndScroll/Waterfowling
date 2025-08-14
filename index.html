@@ -2,24 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pixel Marsh Duck Hunt — Desktop & Mobile Compatibility</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Pixel Marsh Duck Hunt — iPhone Edition</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-    :root { --bg: #0b0e1a; }
+    :root { --bg: #000; } /* Changed to black for letterboxing */
     html, body {
       height: 100%;
+      width: 100%;
       margin: 0;
       background: var(--bg);
       font-family: 'VT323', monospace;
       color: #e6e6e6;
+      overflow: hidden; /* Prevent scrolling on mobile */
     }
     .wrap {
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       height: 100%;
-      gap: 12px;
+      width: 100%;
       user-select: none;
       -webkit-user-select: none;
       touch-action: manipulation;
@@ -28,40 +32,41 @@
     canvas {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      border-radius: 12px;
-      box-shadow: 0 8px 40px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.06);
-      background: #000;
-      max-width: 90vw;
-      max-height: 70vh;
+      background: #0b0e1a; /* Original game background */
+      /* width and height are now set by JS to maintain aspect ratio */
+      cursor: crosshair;
+      display: block; /* Removes bottom margin/space */
     }
     .hud {
-      font-size: 24px;
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
       opacity: .9;
       text-align: center;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
+      padding: 8px 10px;
+      width: 100%;
+      max-width: 480px; /* Limit HUD width */
+      background: rgba(11, 14, 26, 0.6);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      box-sizing: border-box;
+      padding-bottom: calc(8px + env(safe-area-inset-bottom)); /* iPhone X notch support */
     }
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 16px; /* row-gap column-gap */
+      text-align: left;
+      max-width: 300px;
+      margin: 0 auto;
     }
-    button {
-      background: #1b1f2e;
-      color: #e6e6e6;
-      border: 1px solid #2a2f44;
-      padding: 8px 16px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 16px;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    }
-    button:hover { background: #2a2f44; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.7); }
-    button:active { transform: translateY(0); box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-    .tiny { font-size: 12px; opacity: .7; }
+    .tiny { font-size: 10px; opacity: .7; }
     
     /* Shared overlay styles */
     .intro-overlay, .game-over-overlay, .level-complete-overlay {
@@ -69,6 +74,8 @@
       display: grid; place-items: center; 
       color: white; text-shadow: 2px 2px 5px black;
       flex-direction: column; gap: 20px; text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
     }
     
     /* Specific overlay styles */
@@ -83,9 +90,18 @@
       z-index: 10;
       font-size: 40px;
     }
+    .game-over-overlay button {
+      background: #1b1f2e;
+      color: #e6e6e6;
+      border: 1px solid #2a2f44;
+      padding: 8px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 16px;
+    }
 
     .score-display { font-size: 30px; text-shadow: 1px 1px 3px black; }
-    .dog-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
     
     @keyframes pulse {
       50% { opacity: 0.5; }
@@ -112,36 +128,24 @@
       <span>LEVEL COMPLETE!</span>
       <span id="nextLevelMessage" class="score-display">Prepare for Level 2...</span>
     </div>
-    <canvas id="game" width="320" height="180" aria-label="pixel-art bird hunter shooting ducks in a marsh"></canvas>
-    <div class="hud" aria-live="polite" aria-atomic="true">
-      <div class="flex justify-center items-center gap-4">
-        <div id="ducksDisplay">Ducks: </div>
-        <div id="scoreDisplay">Score: </div>
-        <div id="levelDisplay">Level: </div>
-        <div id="ammoDisplay">Ammo: </div>
+
+    <!-- CANVAS SIZING IS NOW DYNAMIC -->
+    <canvas id="game" aria-label="pixel-art bird hunter shooting ducks in a marsh"></canvas>
+    
+    <!-- OVERLAY HUD -->
+    <div id="hud" class="hud" aria-live="polite" aria-atomic="true">
+      <div class="stats-grid">
+        <div id="scoreDisplay">Score: 0</div>
+        <div id="levelDisplay">Level: 1</div>
+        <div id="ducksDisplay">Ducks: 0/0</div>
+        <div id="ammoDisplay">Ammo: 0</div>
       </div>
-      <div><strong>Click / Tap</strong> to shoot · <strong>Move</strong> mouse/finger to aim · <strong>P</strong> to pause · <strong>R</strong> to restart</div>
-      <div class="btn-row">
-        <button id="restart" title="Restart game">Restart</button>
-        <button id="pause" title="Pause/Resume game">Pause</button>
-      </div>
-      <!-- Text updated to reflect game rules -->
-      <div class="tiny">Waterfowling · Green Duck: +1 Duck · Goose: +2 Ducks · Red Bird: -1 Duck</div>
+      <div class="tiny">Waterfowling · Green Duck: +1 · Goose: +2 · Red Bird: -1</div>
     </div>
   </div>
 
 <script>
 (() => {
-  // --- Config (sped up) ---
-  const W = 320, H = 180;             // native pixel resolution
-  const DUCK_SPAWN_BASE = 70;         // base used by curve (kept for reference)
-  let   MAX_DUCKS_ON_SCREEN = 9;      // becomes dynamic per level
-  const PELLETS = 10;
-  const PELLET_SPEED = 5.8;           // slightly faster pellets
-  const RECOIL_FRAMES = 8;
-  const DAYLEN = 60 * 60;             // 1 minute for a full day/night cycle
-  const HIT_R2 = 36;                  // 6px radius squared
-  
   // --- Canvas setup ---
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -152,16 +156,28 @@
   const finalScoreDisplay = document.getElementById('finalScore');
   const levelCompleteOverlay = document.getElementById('levelCompleteOverlay');
   const nextLevelMessage = document.getElementById('nextLevelMessage');
-  const pauseBtn = document.getElementById('pause');
+  const hud = document.getElementById('hud');
+
+  // --- Config ---
+  const NATIVE_W = 360, NATIVE_H = 640; // Native aspect ratio
+  let W = NATIVE_W, H = NATIVE_H; // Dynamic resolution
+  const DUCK_SPAWN_BASE = 70;
+  let   MAX_DUCKS_ON_SCREEN = 9;
+  const PELLETS = 10;
+  const PELLET_SPEED = 7.5; // Increased from 5.8
+  const RECOIL_FRAMES = 8;
+  const DAYLEN = 60 * 60;
+  const HIT_R2 = 144; // Increased from 81 to match larger sprites (12*12)
+  const SPRITE_SCALE = 2.5; // Increased scale factor for sprites
+  const FOREGROUND_Y_OFFSET = 140; // Increased from 115
   
-  // --- Audio setup (no background music melody) ---
+  // --- Audio setup ---
   let audioContext;
   let rainGainNode;
   let backgroundAudioSetup = false;
 
   function setupBackgroundAudio() {
     if (backgroundAudioSetup || !audioContext) return;
-    // --- Rain Sound (Filtered White Noise) ---
     const bufferSize = 2 * audioContext.sampleRate;
     const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     let output = noiseBuffer.getChannelData(0);
@@ -195,7 +211,7 @@
   }
 
   function playSound(frequency, duration, type, volume) {
-    createAudioContext();
+    if (!audioContext) return;
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -212,7 +228,7 @@
   }
   
   function playJingle(notes, tempo=120) {
-    createAudioContext();
+    if (!audioContext) return;
     let startTime = audioContext.currentTime;
     const noteDuration = 60 / tempo;
     notes.forEach(note => {
@@ -232,31 +248,15 @@
     });
   }
 
-  // --- SOUND VARIETY ENHANCEMENT (Shotgun sound reverted) ---
-  function playShotSound() {
-    playSound(200, 0.1, 'sawtooth', 0.5);
-    playSound(400, 0.05, 'square', 0.2);
-  }
-  function playDuckHitSound() {
-    const baseFreq1 = 780 + R(40); // 780-820 Hz range
-    const baseFreq2 = 580 + R(40); // 580-620 Hz range
-    playSound(baseFreq1, 0.05, 'sine', 0.3);
-    playSound(baseFreq2, 0.05, 'sine', 0.2);
-  }
+  function playShotSound() { playSound(200, 0.1, 'sawtooth', 0.5); playSound(400, 0.05, 'square', 0.2); }
+  function playDuckHitSound() { const baseFreq1 = 780 + R(40); const baseFreq2 = 580 + R(40); playSound(baseFreq1, 0.05, 'sine', 0.3); playSound(baseFreq2, 0.05, 'sine', 0.2); }
   function playPenaltySound() { playSound(120, 0.15, 'sawtooth', 0.4); playSound(100, 0.15, 'sawtooth', 0.4); }
   function playDogBark() { playSound(150, 0.08, 'sawtooth', 0.3); setTimeout(() => playSound(180, 0.08, 'sawtooth', 0.3), 100); }
-  function playGameOverJingle() {
-    const notes = [ { freq: 261.63, duration: 0.5 }, { freq: 246.94, duration: 0.5 }, { freq: 233.08, duration: 0.5 }, { freq: 220.00, duration: 1.5 } ];
-    playJingle(notes, 120);
-  }
-  function playLevelCompleteJingle() {
-    const notes = [ { freq: 392.00, duration: 0.5 }, { freq: 523.25, duration: 0.5 }, { freq: 659.25, duration: 0.5 }, { freq: 783.99, duration: 1.5 } ];
-    playJingle(notes, 150);
-  }
+  function playGameOverJingle() { const notes = [ { freq: 261.63, duration: 0.5 }, { freq: 246.94, duration: 0.5 }, { freq: 233.08, duration: 0.5 }, { freq: 220.00, duration: 1.5 } ]; playJingle(notes, 120); }
+  function playLevelCompleteJingle() { const notes = [ { freq: 392.00, duration: 0.5 }, { freq: 523.25, duration: 0.5 }, { freq: 659.25, duration: 0.5 }, { freq: 783.99, duration: 1.5 } ]; playJingle(notes, 150); }
 
   // --- Input state ---
-  let mouse = { x: W * 0.6, y: H * 0.4, down: false };
-  let paused = false;
+  let mouse = { x: W / 2, y: H * 0.6, down: false };
   let gameOver = false;
   let gameStarted = false;
 
@@ -268,14 +268,9 @@
   let clouds = [], raindrops = [];
   let treeLine = [], fencerows = [];
   let weather = { raining: false, until: 0 };
-  let hunter = { x: 28, y: H - 30, aiming: 0, recoil: 0, muzzleFlash: 0 };
+  let hunter = { x: W/2 - 12, y: H - FOREGROUND_Y_OFFSET, aiming: 0, recoil: 0, muzzleFlash: 0 };
   let dogs = [];
-
-  // Difficulty / progression state
-  let prevAccuracy = null;
-  let nextSpawnAt = 0;
-  let currentParams = null;
-  let shotsFired = 0; // for accuracy/adaptive tuning
+  let prevAccuracy = null, nextSpawnAt = 0, currentParams = null, shotsFired = 0;
 
   // --- Utility ---
   const R = (n=1) => Math.random() * n;
@@ -285,220 +280,127 @@
 
   function p(x, y, color) { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); }
   function r(x,y,w,h,color) { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
-  function l(x0,y0,x1,y1,color) {
-    let dx = Math.abs(x1-x0), dy = -Math.abs(y1-y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy;
-    while (true) { p(x0, y0, color); if (x0===x1 && y0===y1) break; let e2 = 2*err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
-  }
+  function l(x0,y0,x1,y1,color) { let dx = Math.abs(x1-x0), dy = -Math.abs(y1-y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; while (true) { p(x0, y0, color); if (x0===x1 && y0===y1) break; let e2 = 2*err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
   function pixelCircle(x, y, radius, color) { for (let i=-radius; i<=radius; i++) for (let j=-radius; j<=radius; j++) if (i*i + j*j <= radius*radius) p(x+i, y+j, color); }
 
   // --- Gradients ---
   function getGradientColor(t, stops) {
     function mix(a, b, t) { return a + (b - a) * t; }
-    for (let i = 0; i < stops.length - 1; i++) {
-      const s1 = stops[i]; const s2 = stops[i + 1];
-      if (t >= s1.t && t <= s2.t) {
-        const localT = (t - s1.t) / (s2.t - s1.t);
-        const r = mix(s1.c[0], s2.c[0], localT);
-        const g = mix(s1.c[1], s2.c[1], localT);
-        const b = mix(s1.c[2], s2.c[2], localT);
-        return `rgb(${r|0},${g|0},${b|0})`;
-      }
-    }
-    return `rgb(${stops[0].c[0]|0},${stops[0].c[1]|0},${stops[0].c[2]|0})`;
+    for (let i = 0; i < stops.length - 1; i++) { const s1 = stops[i]; const s2 = stops[i + 1]; if (t >= s1.t && t <= s2.t) { const localT = (t - s1.t) / (s2.t - s1.t); const r = mix(s1.c[0], s2.c[0], localT); const g = mix(s1.c[1], s2.c[1], localT); const b = mix(s1.c[2], s2.c[2], localT); return `rgb(${r|0},${g|0},${b|0})`; } } return `rgb(${stops[0].c[0]|0},${stops[0].c[1]|0},${stops[0].c[2]|0})`;
   }
-
-  const skyStops = [
-    {t: 0.00, c: [10, 15, 40]}, {t: 0.20, c: [10, 15, 40]}, {t: 0.25, c: [30, 40, 80]}, {t: 0.28, c: [240, 130, 90]}, {t: 0.35, c: [100, 160, 220]}, {t: 0.50, c: [135, 206, 250]}, {t: 0.70, c: [100, 160, 220]}, {t: 0.80, c: [255, 140, 80]}, {t: 0.85, c: [30, 40, 80]}, {t: 1.00, c: [10, 15, 40]}
-  ];
-  const waterStops = [
-    {t: 0.00, c: [15, 20, 50]}, {t: 0.20, c: [15, 20, 50]}, {t: 0.25, c: [40, 50, 90]}, {t: 0.28, c: [220, 110, 80]}, {t: 0.35, c: [80, 130, 180]}, {t: 0.50, c: [60, 140, 200]}, {t: 0.70, c: [80, 130, 180]}, {t: 0.80, c: [230, 120, 70]}, {t: 0.85, c: [40, 50, 90]}, {t: 1.00, c: [15, 20, 50]}
-  ];
+  const skyStops = [ {t: 0.00, c: [10, 15, 40]}, {t: 0.20, c: [10, 15, 40]}, {t: 0.25, c: [30, 40, 80]}, {t: 0.28, c: [240, 130, 90]}, {t: 0.35, c: [100, 160, 220]}, {t: 0.50, c: [135, 206, 250]}, {t: 0.70, c: [100, 160, 220]}, {t: 0.80, c: [255, 140, 80]}, {t: 0.85, c: [30, 40, 80]}, {t: 1.00, c: [10, 15, 40]} ];
+  const waterStops = [ {t: 0.00, c: [15, 20, 50]}, {t: 0.20, c: [15, 20, 50]}, {t: 0.25, c: [40, 50, 90]}, {t: 0.28, c: [220, 110, 80]}, {t: 0.35, c: [80, 130, 180]}, {t: 0.50, c: [60, 140, 200]}, {t: 0.70, c: [80, 130, 180]}, {t: 0.80, c: [230, 120, 70]}, {t: 0.85, c: [40, 50, 90]}, {t: 1.00, c: [15, 20, 50]} ];
   
-  function generateTreeLine() {
-    treeLine = [];
-    for (let i = 0; i < W; i++) {
-      const height = 8 + Math.sin(i * 0.1) * 2 + Math.sin(i * 0.04) * 4 + R(5);
-      treeLine.push(height);
-    }
-  }
+  function generateTreeLine() { treeLine = []; for (let i = 0; i < W; i++) { const height = 8 + Math.sin(i * 0.1) * 2 + Math.sin(i * 0.04) * 4 + R(5); treeLine.push(height); } }
+  function generateReeds() { reeds = []; for (let i=0;i<100;i++) { reeds.push({ x: RI(0,W-1), h: RI(8,22), seed: R(1000), layer: Math.random() < 0.3 ? 2 : (Math.random() < 0.6 ? 1 : 0), type: Math.random() < 0.2 ? 'cattail' : 'simple' }); } reeds.sort((a, b) => a.layer - b.layer); }
+  function generateFencerows() { fencerows = []; for (let i = 0; i < 20; i++) { fencerows.push({ x: RI(0, W - 1), h: RI(5, 15), seed: R(1000), type: Math.random() < 0.2 ? 'post' : 'weed', layer: Math.random() < 0.3 ? 2 : (Math.random() < 0.6 ? 1 : 0) }); } fencerows.sort((a, b) => a.layer - b.layer); }
 
-  function generateReeds() {
-    reeds = [];
-    for (let i=0;i<150;i++) {
-      reeds.push({ x: RI(0,W-1), h: RI(8,22), seed: R(1000), layer: Math.random() < 0.3 ? 2 : (Math.random() < 0.6 ? 1 : 0), type: Math.random() < 0.2 ? 'cattail' : 'simple' });
-    }
-    reeds.sort((a, b) => a.layer - b.layer);
-  }
+  function spawnCloud() { const dirRight = Math.random() < 0.5; const cloud = { x: dirRight ? -40 : W + 40, y: RI(8, H * 0.3), vx: (dirRight ? 0.3 : -0.3) * (0.5 + R(0.6)), life: RI(1800, 2400), puffs: [] }; const puffCount = RI(8, 15); for (let i = 0; i < puffCount; i++) cloud.puffs.push({ dx: (R(1) - 0.5) * 30, dy: (R(1) - 0.8) * 10, r: RI(5, 10) }); clouds.push(cloud); }
+  function drawClouds() { for (let i = clouds.length - 1; i >= 0; i--) { const c = clouds[i]; c.x += c.vx; c.life--; const t = (frame % DAYLEN) / DAYLEN; const night = (t < 0.25 || t > 0.85); const tone1 = night ? 'rgba(170,187,208,0.7)' : 'rgba(216,230,242,0.7)'; const tone2 = night ? 'rgba(135,155,176,0.6)' : 'rgba(178,192,203,0.6)'; c.puffs.forEach(puff => { ctx.fillStyle = tone1; pixelCircle(c.x + puff.dx, c.y + puff.dy, puff.r); ctx.fillStyle = tone2; pixelCircle(c.x + puff.dx + R(2)-1, c.y + puff.dy + R(2)-1, puff.r * 0.8); }); if (c.x < -60 || c.x > W + 60 || c.life <= 0) clouds.splice(i, 1); } }
+  function spawnRainTick() { for (let i=0;i<RI(2,6);i++) raindrops.push({ x: RI(0, W), y: RI(0, H * 0.4), vx: -0.6, vy: 3.6 + R(1.2) }); }
+  function drawRain() { const waterY = H - (FOREGROUND_Y_OFFSET - 5); for (let i=raindrops.length-1; i>=0; i--) { const d = raindrops[i]; d.x += d.vx; d.y += d.vy; l(Math.round(d.x), Math.round(d.y-2), Math.round(d.x-1), Math.round(d.y), '#8fb7ff'); if (d.y >= waterY) { makeSplash(d.x, waterY-1); ripples.push({ x: d.x, y: waterY, r: 1, life: 40 }); raindrops.splice(i,1); } else if (d.x < -5 || d.y > H+5) { raindrops.splice(i,1); } } }
 
-  function generateFencerows() {
-    fencerows = [];
-    for (let i = 0; i < 40; i++) {
-      fencerows.push({ x: RI(0, W - 1), h: RI(5, 15), seed: R(1000), type: Math.random() < 0.2 ? 'post' : 'weed', layer: Math.random() < 0.3 ? 2 : (Math.random() < 0.6 ? 1 : 0) });
-    }
-    fencerows.sort((a, b) => a.layer - b.layer);
-  }
-
-  // --- Clouds & Rain helpers ---
-  function spawnCloud() {
-    const dirRight = Math.random() < 0.5;
-    const cloud = {
-      x: dirRight ? -40 : W + 40,
-      y: RI(8, 60),
-      vx: (dirRight ? 0.3 : -0.3) * (0.5 + R(0.6)),
-      life: RI(1800, 2400),
-      puffs: []
-    };
-    const puffCount = RI(8, 15);
-    for (let i = 0; i < puffCount; i++) cloud.puffs.push({ dx: (R(1) - 0.5) * 30, dy: (R(1) - 0.8) * 10, r: RI(5, 10) });
-    clouds.push(cloud);
-  }
-
-  function drawClouds() {
-    for (let i = clouds.length - 1; i >= 0; i--) {
-      const c = clouds[i]; c.x += c.vx; c.life--;
-      const t = (frame % DAYLEN) / DAYLEN;
-      const night = (t < 0.25 || t > 0.85);
-      const tone1 = night ? 'rgba(170,187,208,0.7)' : 'rgba(216,230,242,0.7)';
-      const tone2 = night ? 'rgba(135,155,176,0.6)' : 'rgba(178,192,203,0.6)';
-      c.puffs.forEach(puff => { ctx.fillStyle = tone1; pixelCircle(c.x + puff.dx, c.y + puff.dy, puff.r); ctx.fillStyle = tone2; pixelCircle(c.x + puff.dx + R(2)-1, c.y + puff.dy + R(2)-1, puff.r * 0.8); });
-      if (c.x < -60 || c.x > W + 60 || c.life <= 0) clouds.splice(i, 1);
-    }
-  }
-
-  function spawnRainTick() { for (let i=0;i<RI(2,6);i++) raindrops.push({ x: RI(0, W), y: RI(0, 70), vx: -0.6, vy: 3.6 + R(1.2) }); }
-
-  function drawRain() {
-    const waterY = H - 24;
-    for (let i=raindrops.length-1; i>=0; i--) {
-      const d = raindrops[i]; d.x += d.vx; d.y += d.vy;
-      l(Math.round(d.x), Math.round(d.y-2), Math.round(d.x-1), Math.round(d.y), '#8fb7ff');
-      if (d.y >= waterY) { 
-        makeSplash(d.x, waterY-1); 
-        ripples.push({ x: d.x, y: waterY, r: 1, life: 40 });
-        raindrops.splice(i,1); 
-      }
-      else if (d.x < -5 || d.y > H+5) { raindrops.splice(i,1); }
-    }
-  }
-
-  // --- Difficulty curves ---
   function getLevelParams(l, acc){
-    const L = Math.max(1, l);
-    const t = clamp((L-1)/8, 0, 1);
-    const e = easeOut(t);
-
+    const L = Math.max(1, l); const t = clamp((L-1)/8, 0, 1); const e = easeOut(t);
     const spawnInterval = Math.round(clamp(DUCK_SPAWN_BASE - 52*e - 5*L, 14, 70));
     const maxOnScreen  = clamp(7 + Math.floor(L*0.75), 7, 14);
-
     let fastProb = L < 2 ? 0.10 * L : clamp(0.15 + 0.08*(L-2) + 0.25*e, 0.15, 0.80);
     if (acc != null && acc < 0.35) fastProb = Math.max(0.08, fastProb - 0.04);
-
     const gooseProb = clamp(0.01 + 0.004*L, 0.01, 0.05);
-
-    const speedNormal = clamp(1.15 + 0.05*L + 0.30*e, 1.15, 2.30);
-    const speedFast   = clamp(1.70 + 0.06*L + 0.35*e, 1.70, 2.45);
-    const speedGoose  = clamp(0.95 + 0.03*L + 0.20*e, 0.95, 1.90);
-
+    const speedNormal = clamp(1.45 + 0.05*L + 0.30*e, 1.45, 2.60); // Increased
+    const speedFast   = clamp(2.10 + 0.06*L + 0.35*e, 2.10, 3.00); // Increased
+    const speedGoose  = clamp(1.25 + 0.03*L + 0.20*e, 1.25, 2.20); // Increased
     const ducksNeeded = clamp(5 + Math.round(1.9*L + 2.3*e), 5, 28);
-    let ammoBuffer = 1;
-    if (acc != null) {
-      if (acc < 0.35) ammoBuffer = 4; else if (acc < 0.5) ammoBuffer = 3; else if (acc > 0.8) ammoBuffer = 0;
-    }
-
+    let ammoBuffer = 1; if (acc != null) { if (acc < 0.35) ammoBuffer = 4; else if (acc < 0.5) ammoBuffer = 3; else if (acc > 0.8) ammoBuffer = 0; }
     return { spawnInterval, maxOnScreen, fastProb, gooseProb, speedNormal, speedFast, speedGoose, ducksNeeded, ammoBuffer };
   }
 
-  // --- Ducks ---
   function spawnDuck() {
     if (ducks.filter(d => d.alive).length >= MAX_DUCKS_ON_SCREEN) return;
     const fromLeft = Math.random() < 0.5;
     const x = fromLeft ? -10 : W+10;
-    const y = RI(20, 70);
+    const y = RI(H * 0.1, H * 0.4); // Spawn in upper part of screen
     const base = 1.0 + R(1.0);
 
-    const roll = Math.random();
-    let type = 'normal';
-    if (roll < currentParams.gooseProb) type = 'goose';
-    else if (roll < currentParams.gooseProb + currentParams.fastProb) type = 'fast';
+    const roll = Math.random(); let type = 'normal';
+    if (roll < currentParams.gooseProb) type = 'goose'; else if (roll < currentParams.gooseProb + currentParams.fastProb) type = 'fast';
 
-    const vx = (fromLeft ? 1 : -1) * base;
-    const vy = (R(1)-.5)*0.35;
+    const vx = (fromLeft ? 1 : -1) * base; const vy = (R(1)-.5)*0.35;
     const duck = { x, y, vx, vy, s: 1, flap: 0, alive: true, fall: 0, frame: 0, type, hit: false, retrieved: false };
     if (type === 'fast') { duck.zigF = 0.32 + R(0.20); duck.zigA = 0.9 + R(0.6); duck.zigPhase = R(Math.PI*2); }
     if (type === 'goose') { duck.zigF = 0.10 + R(0.05); duck.zigA = 0.25 + R(0.15); duck.zigPhase = R(Math.PI*2); }
     ducks.push(duck);
   }
 
-  // --- Splashes & Puffs ---
   function makeSplash(x,y) { for (let i=0;i<12;i++) splashes.push({ x, y, vx:(R(1)-.5)*0.9, vy: -R(1.3), life: 40 }); }
   function puff(x,y, n=6) { for (let i=0;i<n;i++) puffs.push({ x, y, vx:(R(1)-.5)*0.5, vy:(R(1)-.5)*0.5, life: 24 }); }
 
-  // --- Shot logic ---
   function shoot(targetX, targetY) {
-    if (gameOver || paused || ammo <= 0 || !gameStarted) return;
-    playShotSound();
-    ammo--; shotsFired++;
+    if (gameOver || !gameStarted || ammo <= 0) return;
+    playShotSound(); ammo--; shotsFired++;
     hunter.recoil = RECOIL_FRAMES;
+    const gunTipX = hunter.x+12, gunTipY = hunter.y-20;
     hunter.muzzleFlash = 2;
-    puff(hunter.x+22, hunter.y-20, 10);
-    const dx = targetX - (hunter.x+22), dy = targetY - (hunter.y-20);
+    puff(gunTipX, gunTipY, 10);
+    const dx = targetX - gunTipX, dy = targetY - gunTipY;
     const ang = Math.atan2(dy, dx);
     for (let i=0;i<PELLETS;i++) {
       const spread = (Math.random()-0.5) * 0.20;
-      pellets.push({ x: hunter.x+22, y: hunter.y-20, vx: Math.cos(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), vy: Math.sin(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), life: 36 });
+      pellets.push({ x: gunTipX, y: gunTipY, vx: Math.cos(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), vy: Math.sin(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), life: 70 }); // Increased life from 36
     }
   }
 
-  // --- Hunter ---
   function drawHunter() {
     const hx = hunter.x, hy = hunter.y;
+    const s = SPRITE_SCALE * 0.9; // Slightly smaller scale for hunter
     const hat = '#5a524c', coat = '#6d5c4b', coatAccent = '#5a4a3b', shirt = '#d4c798', pants = '#5a524c', boots = '#4a3b2a', skin = '#c79a6a';
     const gunWood = '#6d4c3b', gunWoodDark = '#4a3326', gunMetal = '#666', gunMetalDark = '#444';
-    const originX = hx + 10, originY = hy - 16;
+    const originX = hx + 10*s, originY = hy - 16*s;
+
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(s, s);
 
     // Legs & Boots
-    r(hx + 2, hy - 10, 2, 10, boots);
-    r(hx + 6, hy - 10, 2, 10, boots);
-    r(hx + 2, hy - 12, 6, 2, pants);
-
+    r(2, -10, 2, 10, boots); r(6, -10, 2, 10, boots); r(2, -12, 6, 2, pants);
     // Body & Coat
-    r(hx + 1, hy - 20, 8, 10, coat);
-    for(let i = 0; i < 4; i++) { p(hx + 2 + i*2, hy - 19, coatAccent); p(hx + 1 + i*2, hy - 18, coatAccent); p(hx + 2 + i*2, hy - 17, coatAccent); p(hx + 1 + i*2, hy - 16, coatAccent);} 
-    r(hx + 3, hy - 18, 4, 2, shirt);
-
+    r(1, -20, 8, 10, coat); for(let i = 0; i < 4; i++) { p(2 + i*2, -19, coatAccent); p(1 + i*2, -18, coatAccent); p(2 + i*2, -17, coatAccent); p(1 + i*2, -16, coatAccent);} r(3, -18, 4, 2, shirt);
     // Head and Flat Cap
-    r(hx + 3, hy - 24, 4, 4, skin);
-    p(hx + 5, hy - 23, '#111');
-    r(hx + 2, hy - 26, 7, 2, hat);
-    r(hx + 7, hy - 25, 3, 1, hat);
+    r(3, -24, 4, 4, skin); p(5, -23, '#111'); r(2, -26, 7, 2, hat); r(7, -25, 3, 1, hat);
+    ctx.restore();
 
     // Aiming arm & gun
     const ang = Math.atan2(mouse.y - originY, mouse.x - originX);
     const recoilOffset = (hunter.recoil > 0 ? -2 : 0);
 
-    ctx.save(); ctx.translate(originX, originY); ctx.rotate(ang);
+    ctx.save(); ctx.translate(originX, originY); ctx.rotate(ang); ctx.scale(s,s);
     // Stock
-    r(-8 + recoilOffset, -1, 8, 3, gunWood); r(-8 + recoilOffset, 0, 2, 1, gunWoodDark); p(-9 + recoilOffset, 0, gunWood); p(-9 + recoilOffset, 1, gunWood); r(-8 + recoilOffset, 2, 4, 1, gunWoodDark);
+    r(-10 + recoilOffset, 0, 10, 2, gunWood); // Longer stock
+    p(-11 + recoilOffset, 1, gunWood);
+    r(-8 + recoilOffset, 2, 6, 1, gunWoodDark);
     // Action/Receiver
-    r(0 + recoilOffset, -2, 3, 5, gunMetal); p(1 + recoilOffset, -1, gunMetalDark); p(1 + recoilOffset, 1, gunMetalDark);
+    r(0 + recoilOffset, -1, 4, 3, gunMetal);
+    p(1 + recoilOffset, 0, gunMetalDark);
+    p(1 + recoilOffset, 2, gunMetalDark);
     // Trigger guard
     p(0 + recoilOffset, 3, gunMetal); p(1 + recoilOffset, 4, gunMetal); p(2 + recoilOffset, 3, gunMetal);
-    // Barrels (side-by-side)
-    r(3 + recoilOffset, -1, 18, 1, gunMetal); r(3 + recoilOffset, 1, 18, 1, gunMetal); p(20 + recoilOffset, 0, gunMetal);
+    // Barrels (Over-under)
+    r(3 + recoilOffset, -1, 18, 2, gunMetalDark); // Main barrel shape
+    r(3 + recoilOffset, -1, 18, 1, gunMetal);     // Top highlight
     // Forend
-    r(4 + recoilOffset, 2, 8, 1, gunWood); r(5 + recoilOffset, 3, 6, 1, gunWoodDark);
+    r(4 + recoilOffset, 1, 8, 1, gunWood);
+    r(5 + recoilOffset, 2, 6, 1, gunWoodDark);
     ctx.restore();
 
     // Muzzle flash
     if (hunter.muzzleFlash > 0) {
-      const endX = originX + Math.cos(ang) * (22 + recoilOffset);
-      const endY = originY + Math.sin(ang) * (22 + recoilOffset);
+      const endX = originX + Math.cos(ang) * (22*s + recoilOffset);
+      const endY = originY + Math.sin(ang) * (22*s + recoilOffset);
       const fx = endX, fy = endY;
-      r(fx - 1, fy - 1, 3, 3, '#fff3a0'); p(fx + 2, fy, '#ffd46b'); p(fx - 2, fy, '#ffd46b'); p(fx, fy + 2, '#ffd46b'); p(fx, fy - 2, '#ffd46b');
+      r(fx - 1*s, fy - 1*s, 3*s, 3*s, '#fff3a0'); p(fx + 2*s, fy, '#ffd46b'); p(fx - 2*s, fy, '#ffd46b'); p(fx, fy + 2*s, '#ffd46b'); p(fx, fy - 2*s, '#ffd46b');
     }
   }
   
-  // --- Dog Sprites ---
   const dogSprites = {
     carrying: [
       (ctx, x, y) => { const light = '#a3713f', mid = '#734c2b', black = '#111'; r(x+1, y+8, 10, 5, mid); r(x+2, y+9, 8, 3, light); r(x+9, y+7, 4, 4, mid); r(x+10, y+8, 2, 2, light); r(x+12, y+8, 2, 1, black); p(x+10, y+8, black); r(x+8, y+6, 2, 2, mid); r(x, y+10, 2, 2, mid); r(x+2, y+13, 2, 4, mid); r(x+3, y+13, 1, 3, light); r(x+8, y+13, 2, 4, mid); r(x+9, y+13, 1, 3, light); },
@@ -508,492 +410,260 @@
     ]
   };
 
-  // --- DYNAMIC DOG RETRIEVAL ---
-  function spawnDog(duckX, duckType) {
-    playDogBark();
-    const dirRight = duckX > W / 2;
-    const vx = dirRight ? 1.2 : -1.2;
-    dogs.push({ x: duckX, y: H-24, frame: 0, state: 'carrying', vx, duckType });
-  }
+  function spawnDog(duckX, duckType) { playDogBark(); const dirRight = duckX > W / 2; const vx = dirRight ? 1.2 : -1.2; dogs.push({ x: duckX, y: H - (FOREGROUND_Y_OFFSET - 5), frame: 0, state: 'carrying', vx, duckType }); }
   function drawDogs() {
     if (!dogs || !Array.isArray(dogs)) return;
     for (const dog of dogs) {
       const sprite = dogSprites[dog.state][(dog.frame / 5 | 0) % dogSprites[dog.state].length];
       if (sprite) {
         ctx.save();
-        if (dog.vx < 0) { ctx.translate(dog.x + 16, dog.y); ctx.scale(-1, 1); }
-        else { ctx.translate(dog.x, dog.y); }
-        
+        if (dog.vx < 0) { ctx.translate(dog.x + 16, dog.y); ctx.scale(-1, 1); } else { ctx.translate(dog.x, dog.y); }
+        ctx.scale(SPRITE_SCALE, SPRITE_SCALE); // Scale the dog
         sprite(ctx, 0, 0);
-
-        // Draw the correct duck type in the dog's mouth
         switch(dog.duckType) {
-            case 'goose':
-                r(12, 8, 5, 2, '#7a6d5a'); // Body
-                r(16, 7, 2, 3, '#111');   // Neck
-                p(18, 7, '#333');         // Bill
-                break;
-            case 'fast':
-                r(12, 8, 5, 2, '#e04242'); // Body
-                r(16, 7, 2, 2, '#c82828'); // Head
-                p(18, 8, '#ffb86b');      // Beak
-                break;
-            default: // normal
-                const duckBody = '#2a3b28', duckHead = '#2b6d2f', duckBill = '#cca23a';
-                r(12, 8, 4, 2, duckBody);
-                r(15, 7, 2, 2, duckHead);
-                p(17, 8, duckBill);
-                break;
+            case 'goose': r(12, 8, 5, 2, '#7a6d5a'); r(16, 7, 2, 3, '#111'); p(18, 7, '#333'); break;
+            case 'fast': r(12, 8, 5, 2, '#e04242'); r(16, 7, 2, 2, '#c82828'); p(18, 8, '#ffb86b'); break;
+            default: r(12, 8, 4, 2, '#2a3b28'); r(15, 7, 2, 2, '#2b6d2f'); p(17, 8, '#cca23a'); break;
         }
         ctx.restore();
       }
     }
   }
 
-  // --- Reeds ---
   function drawReeds() {
-    const waterY = H - 24;
+    const waterY = H - (FOREGROUND_Y_OFFSET - 5);
     reeds.forEach(rd => {
-      const sway = Math.sin(frame*0.035 + rd.seed) * (1.2 - rd.layer * 0.4);
-      const x = rd.x; const y = waterY;
-      const green1 = rd.layer === 2 ? '#a3c95a' : (rd.layer === 1 ? '#7aa14a' : '#4b6b33');
-      const green2 = rd.layer === 2 ? '#7aa14a' : (rd.layer === 1 ? '#4b6b33' : '#3a5229');
-      const cattailColor = rd.layer === 2 ? '#7a5634' : (rd.layer === 1 ? '#6a4a2e' : '#5a3e2b');
-      // stalk
-      for (let j=0; j<rd.h; j++) {
-        const currentSway = sway * (j / rd.h);
-        p(x + currentSway, y - j, j > rd.h / 2 ? green1 : green2);
-        if (rd.layer > 0) p(x + currentSway - 1, y - j, green2);
-      }
-      // cattail top
-      if (rd.type === 'cattail') {
-        const topY = y - rd.h;
-        const topSway = sway;
-        r(x + topSway - 1, topY - 4, 2, 4, cattailColor);
-      }
+      const sway = Math.sin(frame*0.035 + rd.seed) * (1.2 - rd.layer * 0.4); const x = rd.x; const y = waterY;
+      const green1 = rd.layer === 2 ? '#a3c95a' : (rd.layer === 1 ? '#7aa14a' : '#4b6b33'); const green2 = rd.layer === 2 ? '#7aa14a' : (rd.layer === 1 ? '#4b6b33' : '#3a5229'); const cattailColor = rd.layer === 2 ? '#7a5634' : (rd.layer === 1 ? '#6a4a2e' : '#5a3e2b');
+      for (let j=0; j<rd.h; j++) { const currentSway = sway * (j / rd.h); p(x + currentSway, y - j, j > rd.h / 2 ? green1 : green2); if (rd.layer > 0) p(x + currentSway - 1, y - j, green2); }
+      if (rd.type === 'cattail') { const topY = y - rd.h; const topSway = sway; r(x + topSway - 1, topY - 4, 2, 4, cattailColor); }
     });
   }
 
-  // --- Background (sky, sun/moon, clouds, trees, water) ---
   let starField = null;
-  function ensureStars(){ if (!starField) starField = Array.from({length: 60}, () => ({x: RI(0,W), y: RI(0,90), a: Math.random()*0.8})); }
-  function drawStars(sunElev){
-    if (sunElev > 0.1) { starField = null; return; }
-    ensureStars();
-    ctx.globalAlpha = clamp(1 - (sunElev / 0.1), 0, 1);
-    for (const s of starField) p(s.x, s.y, `rgba(255,255,255,${s.a})`);
-    ctx.globalAlpha = 1;
-  }
+  function ensureStars(){ if (!starField) starField = Array.from({length: 60}, () => ({x: RI(0,W), y: RI(0, H * 0.5), a: Math.random()*0.8})); }
+  function drawStars(sunElev){ if (sunElev > 0.1) { starField = null; return; } ensureStars(); ctx.globalAlpha = clamp(1 - (sunElev / 0.1), 0, 1); for (const s of starField) p(s.x, s.y, `rgba(255,255,255,${s.a})`); ctx.globalAlpha = 1; }
 
   function drawBackground() {
     const gameTime = (frame % DAYLEN) / DAYLEN;
-    const treeLineY = 90;
-    const sky = getGradientColor(gameTime, skyStops);
-    const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, sky); g.addColorStop(1, '#14324f'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-
-    // Celestials
-    const theta = 2 * Math.PI * (gameTime - 0.25);
-    const sunElev = Math.sin(theta);
-    const sunX = W/2 - (W/2) * Math.cos(theta);
-    const sunY = treeLineY - sunElev * (treeLineY);
-
-    if (sunElev > 0 && sunY < treeLineY) { 
-      ctx.globalAlpha = 0.9 * Math.min(1, sunElev+0.2); 
-      pixelCircle(Math.round(sunX), Math.round(sunY), 3, '#ffe6a6');
-      ctx.globalAlpha = 0.3; pixelCircle(Math.round(sunX), Math.round(sunY), 6, '#ffd48a'); ctx.globalAlpha = 1; 
-    }
-
-    const moonTheta = theta + Math.PI;
-    const moonElev = Math.sin(moonTheta);
-    const moonX = W/2 - (W/2) * Math.cos(moonTheta);
-    const moonY = treeLineY - moonElev * (treeLineY);
-
-    if (moonElev > 0 && moonY < treeLineY) { 
-      ctx.globalAlpha = 0.8 * Math.min(1, moonElev+0.2); 
-      pixelCircle(Math.round(moonX), Math.round(moonY), 2, '#dfe7ff');
-      ctx.globalAlpha = 0.4; pixelCircle(Math.round(moonX), Math.round(moonY), 4, '#dfe7ff'); ctx.globalAlpha = 1; 
-    }
-
-    // Stars
+    const treeLineY = H * 0.5;
+    const sky = getGradientColor(gameTime, skyStops); const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, sky); g.addColorStop(1, '#14324f'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    const theta = 2 * Math.PI * (gameTime - 0.25); const sunElev = Math.sin(theta); const sunX = W/2 - (W/2) * Math.cos(theta); const sunY = treeLineY - sunElev * (treeLineY);
+    if (sunElev > 0 && sunY < treeLineY) { ctx.globalAlpha = 0.9 * Math.min(1, sunElev+0.2); pixelCircle(Math.round(sunX), Math.round(sunY), 3, '#ffe6a6'); ctx.globalAlpha = 0.3; pixelCircle(Math.round(sunX), Math.round(sunY), 6, '#ffd48a'); ctx.globalAlpha = 1; }
+    const moonTheta = theta + Math.PI; const moonElev = Math.sin(moonTheta); const moonX = W/2 - (W/2) * Math.cos(moonTheta); const moonY = treeLineY - moonElev * (treeLineY);
+    if (moonElev > 0 && moonY < treeLineY) { ctx.globalAlpha = 0.8 * Math.min(1, moonElev+0.2); pixelCircle(Math.round(moonX), Math.round(moonY), 2, '#dfe7ff'); ctx.globalAlpha = 0.4; pixelCircle(Math.round(moonX), Math.round(moonY), 4, '#dfe7ff'); ctx.globalAlpha = 1; }
     drawStars(sunElev);
-
-    // Clouds before trees
     drawClouds();
-
-    // Distant tree line
-    ctx.fillStyle = '#0b2330'; ctx.globalAlpha = 0.7;
-    for (let i = 0; i < W; i++) r(i, treeLineY - treeLine[i], 1, treeLine[i] + 8);
-    ctx.globalAlpha = 1;
-    
-    // Water (no sun reflection)
-    const waterY = H - 24; 
-    const waterColor = getGradientColor(gameTime, waterStops);
-    r(0, waterY, W, 24, waterColor);
-    for (let i=0;i<24;i++) { const yy = waterY + i; if (i%2===0) for (let x=0;x<W;x+=RI(6,12)) r(x + Math.sin((frame*0.04 + i)*0.8)*2.2, yy, RI(2,5), waterColor); }
+    ctx.fillStyle = '#0b2330'; ctx.globalAlpha = 0.7; for (let i = 0; i < W; i++) r(i, treeLineY - treeLine[i], 1, treeLine[i] + 8); ctx.globalAlpha = 1;
+    const waterY = H - (FOREGROUND_Y_OFFSET - 5);
+    const waterHeight = FOREGROUND_Y_OFFSET - 5;
+    const waterColor = getGradientColor(gameTime, waterStops); r(0, waterY, W, waterHeight, waterColor); for (let i=0;i<waterHeight;i++) { const yy = waterY + i; if (i%2===0) for (let x=0;x<W;x+=RI(6,12)) r(x + Math.sin((frame*0.04 + i)*0.8)*2.2, yy, RI(2,5), waterColor); }
   }
 
-  // --- Ducks (face direction of travel) ---
   function drawDuck(d) {
-    const x = Math.round(d.x), y = Math.round(d.y);
-    const right = d.vx > 0;
+    const x = Math.round(d.x), y = Math.round(d.y); const right = d.vx > 0;
+    ctx.save();
+    ctx.translate(x, y);
+    if (!right) ctx.scale(-1, 1);
+    ctx.scale(SPRITE_SCALE, SPRITE_SCALE); // Scale the duck
 
-    // Canadian goose sprite (rare, worth 20 points, counts as 2 ducks)
     if (d.type === 'goose') {
-      ctx.save(); ctx.translate(x, y); if (!right) ctx.scale(-1, 1);
       // Body (larger/longer, grey-brown)
-      r(-6, 0, 12, 5, '#7a6d5a');
-      r(-5, 1, 10, 3, '#9c8f7a');
+      r(-6, 0, 12, 5, '#7a6d5a'); r(-5, 1, 10, 3, '#9c8f7a');
       // Neck & head (black)
-      r(3, -5, 2, 5, '#111');
-      r(4, -6, 3, 3, '#111');
+      r(3, -5, 2, 5, '#111'); r(4, -6, 3, 3, '#111');
       // White cheek patch
       r(5, -5, 2, 1, '#eee');
       // Bill (dark)
       r(7, -5, 2, 1, '#333');
       // Wing flaps (slow heavy beat)
-      const flapFrame = Math.floor(d.flap / 4);
-      ctx.fillStyle = '#5f5446';
-      if (flapFrame === 0) { r(-4, -3, 8, 2); }
-      else if (flapFrame === 1) { r(-5, -1, 10, 2); }
-      else { r(-4, 1, 8, 2); }
-      ctx.restore();
-      return;
-    }
-
-    // FAST BIRD: slimmer body, pointed wings, different beak/head
-    if (d.type === 'fast') {
-      ctx.save(); ctx.translate(x, y); if (!right) ctx.scale(-1, 1);
+      const flapFrame = Math.floor(d.flap / 4); ctx.fillStyle = '#5f5446';
+      if (flapFrame === 0) { r(-4, -3, 8, 2); } else if (flapFrame === 1) { r(-5, -1, 10, 2); } else { r(-4, 1, 8, 2); }
+    } else if (d.type === 'fast') {
       // slim body
-      r(-5, 0, 9, 2, '#e04242');
-      // head
-      r(3, -2, 2, 2, '#c82828');
-      // small beak
-      r(5, -1, 2, 1, '#ffb86b');
+      r(-5, 0, 9, 2, '#e04242'); r(3, -2, 2, 2, '#c82828'); r(5, -1, 2, 1, '#ffb86b');
       // pointed wings, rapid flaps
-      const flap = Math.floor(d.flap / 2) % 3;
-      ctx.fillStyle = '#e85b5b';
-      if (flap === 0) { r(-2, -3, 6, 1); r(-1, -2, 4, 1); }
-      else if (flap === 1) { r(-3, 0, 7, 1); r(-2, 1, 5, 1); }
-      else { r(-2, 2, 6, 1); r(-1, 3, 4, 1); }
-      ctx.restore();
-      return;
+      const flap = Math.floor(d.flap / 2) % 3; ctx.fillStyle = '#e85b5b';
+      if (flap === 0) { r(-2, -3, 6, 1); r(-1, -2, 4, 1); } else if (flap === 1) { r(-3, 0, 7, 1); r(-2, 1, 5, 1); } else { r(-2, 2, 6, 1); r(-1, 3, 4, 1); }
+    } else { // NORMAL DUCK
+      const headC = '#2b6d2f', bodyC1 = '#5a3e2b', bodyC2 = '#87614b', wingC = '#4a3326', billC = '#cca23a', eyeC = '#fff';
+      r(-4, 0, 8, 4, bodyC1); r(-3, 1, 6, 3, bodyC2);
+      r(3, -3, 3, 3, headC); p(5, -2, eyeC); r(6, -2, 2, 1, billC);
+      const flapFrame = Math.floor(d.flap / 3); ctx.fillStyle = wingC;
+      switch(flapFrame) { case 0: r(-2, -3, 5, 2); r(-1, -2, 4, 2); break; case 1: r(-3, 0, 6, 2); r(-2, 1, 5, 2); break; case 2: r(-2, 2, 5, 2); r(-1, 3, 4, 2); break; }
     }
-
-    // NORMAL DUCK
-    const headC = '#2b6d2f';
-    const bodyC1 = '#5a3e2b';
-    const bodyC2 = '#87614b';
-    const wingC = '#4a3326';
-    const billC = '#cca23a';
-    const eyeC = '#fff';
-
-    ctx.save(); ctx.translate(x, y); if (!right) ctx.scale(-1, 1);
-    r(-4, 0, 8, 4, bodyC1); r(-3, 1, 6, 3, bodyC2);
-    r(3, -3, 3, 3, headC); p(5, -2, eyeC); r(6, -2, 2, 1, billC);
-    const flapFrame = Math.floor(d.flap / 3);
-    ctx.fillStyle = wingC;
-    switch(flapFrame) { case 0: r(-2, -3, 5, 2); r(-1, -2, 4, 2); break; case 1: r(-3, 0, 6, 2); r(-2, 1, 5, 2); break; case 2: r(-2, 2, 5, 2); r(-1, 3, 4, 2); break; }
     ctx.restore();
   }
   
-  // --- HUD update function ---
   function updateHUD() {
     document.getElementById('ducksDisplay').textContent = `Ducks: ${ducksShot}/${ducksToShoot}`;
     document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
     document.getElementById('levelDisplay').textContent = `Level: ${level}`;
-    const ammoEl = document.getElementById('ammoDisplay');
-    ammoEl.textContent = `Ammo: ${ammo}`;
-    ammoEl.style.color = ammo <= 2 ? '#ffb3b3' : '#e6e6e6';
+    const ammoEl = document.getElementById('ammoDisplay'); ammoEl.textContent = `Ammo: ${ammo}`; ammoEl.style.color = ammo <= 2 ? '#ffb3b3' : '#e6e6e6';
   }
   
-  // --- Game loop ---
   function update() {
     try {
-      if (paused || gameOver || !gameStarted) return;
+      if (gameOver || !gameStarted) {
+        requestAnimationFrame(update);
+        return;
+      }
       frame++;
-
-      // Dogs
-      if (dogs && Array.isArray(dogs)) {
-        for (let i = dogs.length - 1; i >= 0; i--) {
-          const dog = dogs[i];
-          dog.frame++;
-          if (dog.state === 'carrying') {
-            dog.x += dog.vx;
-            if ((dog.vx > 0 && dog.x > W + 30) || (dog.vx < 0 && dog.x < -30)) dogs.splice(i, 1);
-          }
-        }
-      }
       
-      // Level win
+      hunter.y = H - FOREGROUND_Y_OFFSET;
+
+      if (dogs && Array.isArray(dogs)) { for (let i = dogs.length - 1; i >= 0; i--) { const dog = dogs[i]; dog.frame++; if (dog.state === 'carrying') { dog.x += dog.vx; if ((dog.vx > 0 && dog.x > W + 30) || (dog.vx < 0 && dog.x < -30)) dogs.splice(i, 1); } } }
       if (ducksShot >= ducksToShoot) { startNextLevel(); return; }
-      // Lose condition
-      if (ammo <= 0 && ducksShot < ducksToShoot && pellets.length === 0) {
-        gameOver = true; gameOverOverlay.style.display = 'grid'; finalScoreDisplay.textContent = `Score: ${score}`; playGameOverJingle(); return; }
+      if (ammo <= 0 && ducksShot < ducksToShoot && pellets.length === 0) { gameOver = true; hud.style.display = 'none'; gameOverOverlay.style.display = 'grid'; finalScoreDisplay.textContent = `Score: ${score}`; playGameOverJingle(); return; }
 
-      // Weather scheduling
-      if (!weather.raining && Math.random() < 0.0006) {
-        weather.raining = true;
-        weather.until = frame + RI(500, 1000);
-      }
-      if (weather.raining && frame > weather.until) {
-        weather.raining = false;
-        if (rainGainNode && audioContext) {
-            const now = audioContext.currentTime;
-            // Cancel any scheduled changes and start fading from the current gain value.
-            rainGainNode.gain.setValueAtTime(rainGainNode.gain.value, now);
-            rainGainNode.gain.linearRampToValueAtTime(0.0001, now + 1.5); // Fade out over 1.5 seconds
-        }
-      }
-      if (weather.raining && rainGainNode && rainGainNode.gain.value < 0.1) {
-        if (audioContext) rainGainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.8);
-      }
+      if (!weather.raining && Math.random() < 0.0006) { weather.raining = true; weather.until = frame + RI(500, 1000); }
+      if (weather.raining && frame > weather.until) { weather.raining = false; if (rainGainNode && audioContext) { const now = audioContext.currentTime; rainGainNode.gain.setValueAtTime(rainGainNode.gain.value, now); rainGainNode.gain.linearRampToValueAtTime(0.0001, now + 1.5); } }
+      if (weather.raining && rainGainNode && rainGainNode.gain.value < 0.1) { if (audioContext) rainGainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.8); }
 
-      // Scene
       drawBackground();
-
-      // Cloud spawning (quicker), cap higher
       if (frame % 90 === 0 && clouds.length < 10) spawnCloud();
-
-      // Rain
       if (weather.raining) { spawnRainTick(); drawRain(); }
+      if (frame >= nextSpawnAt) { spawnDuck(); const jitter = RI(-6, 6); nextSpawnAt = frame + Math.max(16, currentParams.spawnInterval + jitter); }
 
-      // Ducks spawn on timer with jitter
-      if (frame >= nextSpawnAt) {
-        spawnDuck();
-        const jitter = RI(-6, 6);
-        nextSpawnAt = frame + Math.max(16, currentParams.spawnInterval + jitter);
-      }
-
-      // Update ducks
       for (let i=ducks.length-1; i>=0; i--) {
         const d = ducks[i];
-        if (d.alive) {
-          const speedMul = d.type === 'fast' ? currentParams.speedFast : (d.type === 'goose' ? currentParams.speedGoose : currentParams.speedNormal);
-          // Zig-zag or bob based on type
-          let zig = 0;
-          if (d.type === 'fast') zig = Math.sin(frame * (d.zigF||0.32) + (d.zigPhase||0)) * (d.zigA||1.0);
-          else if (d.type === 'goose') zig = Math.sin(frame * (d.zigF||0.12) + (d.zigPhase||0)) * (d.zigA||0.3);
-          else zig = Math.sin(frame*0.06 + i)*0.12;
-
-          d.x += d.vx * speedMul;
-          d.y += d.vy * speedMul + zig;
-          d.flap = (d.flap+1)%12; // faster wing animation
-          if (d.x < -20 || d.x > W+20) { ducks.splice(i,1); continue; }
-        } else {
-          d.fall += 0.1; d.y += d.fall; d.x += d.vx*0.45;
-          if (d.y > H-26 && !d.retrieved) { makeSplash(d.x, H-26); spawnDog(d.x, d.type); d.retrieved = true; }
-          if (d.y > H + 10) { ducks.splice(i, 1); continue; }
-        }
+        if (d.alive) { const speedMul = d.type === 'fast' ? currentParams.speedFast : (d.type === 'goose' ? currentParams.speedGoose : currentParams.speedNormal); let zig = 0; if (d.type === 'fast') zig = Math.sin(frame * (d.zigF||0.32) + (d.zigPhase||0)) * (d.zigA||1.0); else if (d.type === 'goose') zig = Math.sin(frame * (d.zigF||0.12) + (d.zigPhase||0)) * (d.zigA||0.3); else zig = Math.sin(frame*0.06 + i)*0.12; d.x += d.vx * speedMul; d.y += d.vy * speedMul + zig; d.flap = (d.flap+1)%12; if (d.x < -20 || d.x > W+20) { ducks.splice(i,1); continue; } } 
+        else { d.fall += 0.1; d.y += d.fall; d.x += d.vx*0.45; if (d.y > H - (FOREGROUND_Y_OFFSET - 3) && !d.retrieved) { makeSplash(d.x, H - (FOREGROUND_Y_OFFSET - 3)); spawnDog(d.x, d.type); d.retrieved = true; } if (d.y > H + 10) { ducks.splice(i, 1); continue; } }
         drawDuck(d);
       }
       
-      // Update pellets
       for (let i=pellets.length-1; i>=0; i--) {
-        const s = pellets[i]; s.x += s.vx; s.y += s.vy; s.life--;
-        if (s.life>0) p(s.x, s.y, '#fffbd1');
-        if (s.life<=0 || s.x<0||s.x>W||s.y<0||s.y>H) { pellets.splice(i,1); continue; }
+        const s = pellets[i]; s.x += s.vx; s.y += s.vy; s.life--; if (s.life>0) p(s.x, s.y, '#fffbd1'); if (s.life<=0 || s.x<0||s.x>W||s.y<0||s.y>H) { pellets.splice(i,1); continue; }
         let hit = false;
-        for (let j=0;j<ducks.length;j++) {
-          const d = ducks[j]; if (!d.alive) continue;
-          const dx = s.x - d.x, dy = s.y - d.y;
-          if (dx*dx + dy*dy < HIT_R2) {
-            d.alive = false; d.hit = true;
-            
-            // --- MODIFIED SCORING LOGIC ---
-            if (d.type === 'fast') { // Red bird penalty
-              score -= 1; // Small score penalty
-              ducksShot = Math.max(0, ducksShot - 1); // DECREMENTS duck count
-              playPenaltySound();
-            } else if (d.type === 'goose') { // Goose bonus
-              score += 20; // Counts as two normal ducks for score
-              ducksShot += 2; // Counts as two normal ducks for level progression
-              playDuckHitSound();
-            } else { // Normal duck
-              score += 10;
-              ducksShot++;
-              playDuckHitSound();
-            }
-
-            puff(d.x, d.y, 8); pellets.splice(i,1); hit = true; break;
-          }
-        }
+        for (let j=0;j<ducks.length;j++) { const d = ducks[j]; if (!d.alive) continue; const dx = s.x - d.x, dy = s.y - d.y; if (dx*dx + dy*dy < HIT_R2) { d.alive = false; d.hit = true; if (d.type === 'fast') { score -= 1; ducksShot = Math.max(0, ducksShot - 1); playPenaltySound(); } else if (d.type === 'goose') { score += 20; ducksShot += 2; playDuckHitSound(); } else { score += 10; ducksShot++; playDuckHitSound(); } puff(d.x, d.y, 8); pellets.splice(i,1); hit = true; break; } }
         if (hit) continue;
       }
 
-      // Splashes
       for (let i=splashes.length-1;i>=0;i--) { const sp = splashes[i]; sp.x += sp.vx; sp.y += sp.vy; sp.vy += 0.05; sp.life--; p(sp.x, sp.y, '#d7f0ff'); if (sp.life<=0) splashes.splice(i,1); }
-      // Puffs
       for (let i=puffs.length-1;i>=0;i--) { const pf = puffs[i]; pf.x += pf.vx; pf.y += pf.vy; pf.life--; p(pf.x, pf.y, '#d8e2f2'); if (pf.life<=0) puffs.splice(i,1); }
       
-      // Ripples
       for (let i = ripples.length - 1; i >= 0; i--) {
-          const ripple = ripples[i];
-          ripple.r += 0.5; // Ripple expansion speed
-          ripple.life--;
-          
-          ctx.beginPath();
-          ctx.ellipse(ripple.x, ripple.y, ripple.r, ripple.r * 0.4, 0, 0, 2 * Math.PI);
-          
-          // Fade out the ripple
-          ctx.globalAlpha = clamp(ripple.life / 40, 0, 1) * 0.6;
-          
-          // Use a color that fits the water
-          const waterColor = getGradientColor((frame % DAYLEN) / DAYLEN, waterStops);
-          ctx.strokeStyle = waterColor;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          if (ripple.life <= 0) {
-              ripples.splice(i, 1);
-          }
+          const ripple = ripples[i]; ripple.r += 0.5; ripple.life--; ctx.beginPath(); ctx.ellipse(ripple.x, ripple.y, ripple.r, ripple.r * 0.4, 0, 0, 2 * Math.PI); ctx.globalAlpha = clamp(ripple.life / 40, 0, 1) * 0.6; const waterColor = getGradientColor((frame % DAYLEN) / DAYLEN, waterStops); ctx.strokeStyle = waterColor; ctx.lineWidth = 1; ctx.stroke();
+          if (ripple.life <= 0) { ripples.splice(i, 1); }
       }
-      ctx.globalAlpha = 1; // Reset alpha
+      ctx.globalAlpha = 1;
 
-      // Hunter & foreground
       if (hunter.recoil>0) hunter.recoil--; if (hunter.muzzleFlash>0) hunter.muzzleFlash--;
       drawReeds(); drawHunter(); drawDogs();
-
-      // HUD
       updateHUD();
-
-      // CRT scanlines
       ctx.globalAlpha = .07; for (let y=0;y<H;y+=2) r(0,y,W,1,'#000'); ctx.globalAlpha = 1;
-
       requestAnimationFrame(update);
     } catch (e) {
       console.error("An error occurred in the game loop:", e);
-      gameOver = true; gameOverOverlay.style.display = 'grid'; finalScoreDisplay.textContent = `An error occurred. Please try restarting.`;
+      gameOver = true; hud.style.display = 'none'; gameOverOverlay.style.display = 'grid'; finalScoreDisplay.textContent = `An error occurred. Please try restarting.`;
     }
   }
 
-  // --- Input events ---
-  function canvasPos(e){ const rect = canvas.getBoundingClientRect(); const sx = canvas.width / rect.width; const sy = canvas.height / rect.height; return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy }; }
+  // --- Input events (Tap-to-Shoot) ---
+  function canvasPos(e){ 
+    const rect = canvas.getBoundingClientRect(); 
+    const sx = W / rect.width; 
+    const sy = H / rect.height; 
+    return { 
+      x: (e.clientX - rect.left) * sx, 
+      y: (e.clientY - rect.top) * sy 
+    }; 
+  }
+  
   canvas.addEventListener('mousemove', e => { const m = canvasPos(e); mouse.x = m.x; mouse.y = m.y; });
   canvas.addEventListener('mousedown', e => { mouse.down = true; const m = canvasPos(e); shoot(m.x, m.y); });
   canvas.addEventListener('mouseup', () => mouse.down = false);
+
   canvas.addEventListener('touchstart', e => { const t = e.changedTouches[0]; const m = canvasPos(t); mouse.x = m.x; mouse.y = m.y; shoot(m.x, m.y); e.preventDefault(); }, {passive:false});
   canvas.addEventListener('touchmove', e => { const t = e.changedTouches[0]; const m = canvasPos(t); mouse.x = m.x; mouse.y = m.y; e.preventDefault(); }, {passive:false});
 
-  // Keys: space to shoot, P/Escape to pause, R to restart
-  window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') { e.preventDefault(); shoot(mouse.x, mouse.y); }
-    if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
-    if (e.code === 'KeyR') restart();
-  });
-
   // Buttons
-  document.getElementById('restart').onclick = () => restart();
   document.getElementById('restartOverlayButton').onclick = () => restart();
-  document.getElementById('pause').onclick = () => togglePause();
   
-  function setPaused(val){
-    if (gameOver) return;
-    paused = val;
-    pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-    if (audioContext) {
-      const now = audioContext.currentTime;
-      if (rainGainNode) rainGainNode.gain.linearRampToValueAtTime(paused ? 0.0001 : (weather.raining ? 0.3 : 0.0), now + 0.15);
-    }
-    if (!paused) requestAnimationFrame(update);
-  }
-  function togglePause(){ setPaused(!paused); }
-
   function restart(){
-    gameOver = false; paused = false; pauseBtn.textContent = 'Pause';
-    gameOverOverlay.style.display = 'none'; levelCompleteOverlay.style.display = 'none';
+    gameOver = false;
+    hud.style.display = 'flex';
+    gameOverOverlay.style.display = 'none'; 
+    levelCompleteOverlay.style.display = 'none';
     score = 0; level = 0; ducksShot = 0; ducksToShoot = 0; ammo = 0;
     ducks = []; pellets = []; splashes = []; puffs = []; ripples = []; clouds = []; raindrops = []; dogs = [];
     frame = 0; weather = {raining:false, until:0}; starField = null; shotsFired = 0; prevAccuracy = null;
     if (rainGainNode && audioContext) rainGainNode.gain.setValueAtTime(0, audioContext.currentTime);
     generateTreeLine(); generateReeds(); generateFencerows();
     startNextLevel();
+    // BUG FIX: Restart the animation loop
+    requestAnimationFrame(update);
   }
 
   function startNextLevel() {
-    // compute accuracy from previous level
-    const acc = (shotsFired > 0) ? (ducksShot / shotsFired) : null;
-    prevAccuracy = acc;
-
-    level++; 
-    ducksShot = 0; 
-    
-    currentParams = getLevelParams(level, acc);
-    MAX_DUCKS_ON_SCREEN = currentParams.maxOnScreen;
-    ducksToShoot = currentParams.ducksNeeded;
-    ammo = ducksToShoot + currentParams.ammoBuffer;
-    ducks = [];
-
-    // reset spawn timer
+    const acc = (shotsFired > 0) ? (ducksShot / shotsFired) : null; prevAccuracy = acc; level++; ducksShot = 0; 
+    currentParams = getLevelParams(level, acc); MAX_DUCKS_ON_SCREEN = currentParams.maxOnScreen;
+    ducksToShoot = currentParams.ducksNeeded; ammo = ducksToShoot + currentParams.ammoBuffer; ducks = [];
     nextSpawnAt = frame + 6;
-
-    // Only show "Level Complete" banner and play jingle for level 2 and up
     if (level > 1) {
-      playLevelCompleteJingle();
-      levelCompleteOverlay.style.display = 'grid';
-      nextLevelMessage.textContent = `Level ${level}`;
-      setTimeout(() => {
-        levelCompleteOverlay.style.display = 'none';
-        requestAnimationFrame(update); // Restart loop for the next level
-      }, 1500);
-    } else {
-      // For the very first level, just start the game loop immediately
-      requestAnimationFrame(update);
-    }
+        playLevelCompleteJingle();
+        hud.style.display = 'none';
+        levelCompleteOverlay.style.display = 'grid';
+        nextLevelMessage.textContent = `Level ${level}`;
+        setTimeout(() => {
+            hud.style.display = 'flex';
+            levelCompleteOverlay.style.display = 'none';
+            // BUG FIX: Restart the animation loop after level transition
+            requestAnimationFrame(update); 
+        }, 1500);
+    } 
   }
 
   function startGame(e) {
-    // Prevent the first click from firing a shot
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    // --- COMPATIBILITY FIX: Remove listeners for both touch and mouse ---
+    if (e) { e.preventDefault(); e.stopPropagation(); }
     document.querySelector('.wrap').removeEventListener('pointerdown', startGame);
-    document.querySelector('.wrap').removeEventListener('touchstart', startGame);
     window.removeEventListener('keydown', startGame);
-
-    // Unlock audio context on the first user gesture
     userGestureAudioUnlock();
-
     introOverlay.style.display = 'none';
+    hud.style.display = 'flex';
     gameStarted = true;
     restart();
   }
 
-  function init() {
-    // Setup the intro screen sequence
-    introText1.textContent = 'Rose & Scroll Presents';
-    introText2.textContent = '';
+  function fit() {
+    const aspectRatio = NATIVE_W / NATIVE_H;
+    let newWidth = window.innerWidth;
+    let newHeight = window.innerHeight;
+    const windowRatio = newWidth / newHeight;
 
+    if (windowRatio > aspectRatio) {
+        newWidth = newHeight * aspectRatio;
+    } else {
+        newHeight = newWidth / aspectRatio;
+    }
+
+    canvas.style.width = newWidth + 'px';
+    canvas.style.height = newHeight + 'px';
+    
+    // Set the internal resolution once
+    canvas.width = NATIVE_W;
+    canvas.height = NATIVE_H;
+
+    W = NATIVE_W;
+    H = NATIVE_H;
+    
+    hunter.x = W/2 - 12;
+    hunter.y = H - FOREGROUND_Y_OFFSET;
+  }
+
+  function init() {
+    hud.style.display = 'none';
+    introText1.textContent = 'Pixel Marsh'; introText2.textContent = '';
     setTimeout(() => {
         introText1.textContent = 'Waterfowling';
-        introText2.innerHTML = '<div class="mt-8 text-2xl opacity-80 animate-pulse">Click or Tap anywhere to Start</div>';
-
-        // --- COMPATIBILITY FIX: Add listeners for both touch and mouse ---
+        introText2.innerHTML = '<div class="mt-8 text-2xl opacity-80 animate-pulse">Tap anywhere to Start</div>';
         document.querySelector('.wrap').addEventListener('pointerdown', startGame, { once: true });
-        document.querySelector('.wrap').addEventListener('touchstart', startGame, { once: true });
         window.addEventListener('keydown', startGame, { once: true });
-
     }, 2500);
   }
 
-  // --- Fit to window ---
-  function fit() {
-    const pad = 20;
-    const availW = window.innerWidth - pad*2;
-    const availH = window.innerHeight - 140;
-    const scale = Math.max(1, Math.floor(Math.min(availW / W, availH / H)));
-    canvas.style.width = (W*scale) + 'px';
-    canvas.style.height = (H*scale) + 'px';
-  }
   window.addEventListener('resize', fit);
   fit();
-
-  // --- Smoke tests (dev) ---
-  console.assert(typeof drawReeds === 'function', 'drawReeds missing');
-  console.assert(typeof drawClouds === 'function', 'drawClouds missing');
-  
   init();
 })();
 </script>
