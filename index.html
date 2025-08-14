@@ -129,10 +129,8 @@
       <span id="nextLevelMessage" class="score-display">Prepare for Level 2...</span>
     </div>
 
-    <!-- CANVAS SIZING IS NOW DYNAMIC -->
     <canvas id="game" aria-label="pixel-art bird hunter shooting ducks in a marsh"></canvas>
     
-    <!-- OVERLAY HUD -->
     <div id="hud" class="hud" aria-live="polite" aria-atomic="true">
       <div class="stats-grid">
         <div id="scoreDisplay">Score: 0</div>
@@ -876,11 +874,10 @@
     }
   }
 
+  // --- MODIFICATION 1: Cleaned up startGame function ---
   function startGame(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    document.querySelector('.wrap').removeEventListener('pointerdown', startGame);
-    window.removeEventListener('keydown', startGame);
-    userGestureAudioUnlock();
+    userGestureAudioUnlock(); // This is the crucial call to enable audio
     introOverlay.style.display = 'none';
     hud.style.display = 'flex';
     gameStarted = true;
@@ -920,7 +917,9 @@
     setTimeout(() => {
         introText1.textContent = 'Waterfowling';
         introText2.innerHTML = '<div class="mt-8 text-2xl opacity-80 animate-pulse">Tap anywhere to Start</div>';
-        document.querySelector('.wrap').addEventListener('pointerdown', startGame, { once: true });
+        // --- MODIFICATION 2: Changed event listener for robustness ---
+        // Attaching a 'click' listener to the overlay itself is the most reliable way.
+        introOverlay.addEventListener('click', startGame, { once: true });
         window.addEventListener('keydown', startGame, { once: true });
     }, 2500);
   }
