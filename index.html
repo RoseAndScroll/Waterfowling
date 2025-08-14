@@ -164,12 +164,12 @@
   const DUCK_SPAWN_BASE = 70;
   let   MAX_DUCKS_ON_SCREEN = 9;
   const PELLETS = 10;
-  const PELLET_SPEED = 7.5; // Increased from 5.8
+  const PELLET_SPEED = 9.0;
   const RECOIL_FRAMES = 8;
   const DAYLEN = 60 * 60;
-  const HIT_R2 = 144; // Increased from 81 to match larger sprites (12*12)
-  const SPRITE_SCALE = 2.5; // Increased scale factor for sprites
-  const FOREGROUND_Y_OFFSET = 140; // Increased from 115
+  const HIT_R2 = 144;
+  const SPRITE_SCALE = 2.5;
+  const FOREGROUND_Y_OFFSET = 140;
   
   // --- Audio setup ---
   let audioContext;
@@ -189,7 +189,7 @@
     filter.type = 'lowpass'; filter.frequency.value = 600;
 
     rainGainNode = audioContext.createGain();
-    rainGainNode.gain.value = 0; // start silent
+    rainGainNode.gain.value = 0;
 
     rainSource.connect(filter).connect(rainGainNode).connect(audioContext.destination);
     rainSource.start();
@@ -307,9 +307,9 @@
     let fastProb = L < 2 ? 0.10 * L : clamp(0.15 + 0.08*(L-2) + 0.25*e, 0.15, 0.80);
     if (acc != null && acc < 0.35) fastProb = Math.max(0.08, fastProb - 0.04);
     const gooseProb = clamp(0.01 + 0.004*L, 0.01, 0.05);
-    const speedNormal = clamp(1.45 + 0.05*L + 0.30*e, 1.45, 2.60); // Increased
-    const speedFast   = clamp(2.10 + 0.06*L + 0.35*e, 2.10, 3.00); // Increased
-    const speedGoose  = clamp(1.25 + 0.03*L + 0.20*e, 1.25, 2.20); // Increased
+    const speedNormal = clamp(1.85 + 0.05*L + 0.30*e, 1.85, 3.00); // Increased
+    const speedFast   = clamp(2.60 + 0.06*L + 0.35*e, 2.60, 3.50); // Increased
+    const speedGoose  = clamp(1.60 + 0.03*L + 0.20*e, 1.60, 2.60); // Increased
     const ducksNeeded = clamp(5 + Math.round(1.9*L + 2.3*e), 5, 28);
     let ammoBuffer = 1; if (acc != null) { if (acc < 0.35) ammoBuffer = 4; else if (acc < 0.5) ammoBuffer = 3; else if (acc > 0.8) ammoBuffer = 0; }
     return { spawnInterval, maxOnScreen, fastProb, gooseProb, speedNormal, speedFast, speedGoose, ducksNeeded, ammoBuffer };
@@ -353,20 +353,55 @@
   function drawHunter() {
     const hx = hunter.x, hy = hunter.y;
     const s = SPRITE_SCALE * 0.9; // Slightly smaller scale for hunter
-    const hat = '#5a524c', coat = '#6d5c4b', coatAccent = '#5a4a3b', shirt = '#d4c798', pants = '#5a524c', boots = '#4a3b2a', skin = '#c79a6a';
+    // Color Palette
+    const skin = '#d9a066', skin_dark = '#b57a47';
+    const hair = '#45283c';
+    const coat = '#5a4a3b', coat_light = '#6d5c4b';
+    const vest = '#3a5229', vest_light = '#4b6b33';
+    const shirt = '#c2c3c7';
+    const pants = '#4a423c', pants_dark = '#3a322c';
+    const boots = '#4a3b2a', boots_light = '#6d5c4b';
+    const tweed_dark = '#5a524c', tweed_light = '#6d625c';
+
     const gunWood = '#6d4c3b', gunWoodDark = '#4a3326', gunMetal = '#666', gunMetalDark = '#444';
     const originX = hx + 10*s, originY = hy - 16*s;
 
+    // Draw static body parts first
     ctx.save();
     ctx.translate(hx, hy);
     ctx.scale(s, s);
 
-    // Legs & Boots
-    r(2, -10, 2, 10, boots); r(6, -10, 2, 10, boots); r(2, -12, 6, 2, pants);
-    // Body & Coat
-    r(1, -20, 8, 10, coat); for(let i = 0; i < 4; i++) { p(2 + i*2, -19, coatAccent); p(1 + i*2, -18, coatAccent); p(2 + i*2, -17, coatAccent); p(1 + i*2, -16, coatAccent);} r(3, -18, 4, 2, shirt);
-    // Head and Flat Cap
-    r(3, -24, 4, 4, skin); p(5, -23, '#111'); r(2, -26, 7, 2, hat); r(7, -25, 3, 1, hat);
+    // Boots
+    r(2, -10, 2, 10, boots); r(6, -10, 2, 10, boots);
+    p(2, -1, boots_light); p(6, -1, boots_light);
+    
+    // Legs
+    r(2, -14, 2, 4, pants); r(6, -14, 2, 4, pants);
+    p(3, -14, pants_dark); p(7, -14, pants_dark);
+
+    // Body & Coat (without arms)
+    r(2, -22, 7, 8, coat);
+    p(2,-22, coat_light); p(8,-22, coat_light);
+    // Vest
+    r(3, -20, 5, 6, vest);
+    r(3, -20, 5, 1, vest_light);
+    // Shirt collar
+    r(4, -21, 3, 1, shirt);
+
+    // Head
+    r(3, -27, 5, 4, skin);
+    p(7, -26, skin_dark); // Ear
+    p(4, -25, hair); // Sideburn
+    p(7, -25, hair); // Hair back
+    p(8, -26, skin); // Nose
+    r(4, -24, 3, 1, hair); // Moustache
+    
+    // Flat Cap
+    r(2, -29, 7, 2, tweed_dark);
+    p(3, -29, tweed_light); p(5, -29, tweed_light); p(7, -29, tweed_light);
+    p(2, -28, tweed_light); p(4, -28, tweed_light); p(6, -28, tweed_light);
+    r(7, -28, 3, 1, tweed_dark);
+    
     ctx.restore();
 
     // Aiming arm & gun
@@ -374,6 +409,36 @@
     const recoilOffset = (hunter.recoil > 0 ? -2 : 0);
 
     ctx.save(); ctx.translate(originX, originY); ctx.rotate(ang); ctx.scale(s,s);
+    
+    // Rear (trigger) arm
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.moveTo(2, -2); // Shoulder
+    ctx.lineTo(-4, 2); // Elbow
+    ctx.lineTo(-2, 4); // Hand
+    ctx.lineTo(0, 4);
+    ctx.lineTo(0, 3);
+    ctx.lineTo(4, 0); // Back to shoulder
+    ctx.closePath();
+    ctx.fill();
+    p(-3, 3, coat_light); // Elbow highlight
+
+    // Forward arm and hand
+    const arm_sleeve = coat;
+    const arm_hand = skin;
+    ctx.fillStyle = arm_sleeve;
+    ctx.beginPath();
+    ctx.moveTo(-6, -2); // Shoulder
+    ctx.lineTo(0, 1);   // Elbow
+    ctx.lineTo(7, 1);   // Forearm
+    ctx.lineTo(9, 3);   // Hand top
+    ctx.lineTo(7, 4);   // Hand bottom
+    ctx.lineTo(0, 3);   // Bottom of forearm
+    ctx.lineTo(-4, 0);  // Back to shoulder
+    ctx.closePath();
+    ctx.fill();
+    r(7, 1, 3, 3, arm_hand); // Hand on forend
+
     // Stock
     r(-10 + recoilOffset, 0, 10, 2, gunWood); // Longer stock
     p(-11 + recoilOffset, 1, gunWood);
@@ -433,10 +498,41 @@
   function drawReeds() {
     const waterY = H - (FOREGROUND_Y_OFFSET - 5);
     reeds.forEach(rd => {
-      const sway = Math.sin(frame*0.035 + rd.seed) * (1.2 - rd.layer * 0.4); const x = rd.x; const y = waterY;
-      const green1 = rd.layer === 2 ? '#a3c95a' : (rd.layer === 1 ? '#7aa14a' : '#4b6b33'); const green2 = rd.layer === 2 ? '#7aa14a' : (rd.layer === 1 ? '#4b6b33' : '#3a5229'); const cattailColor = rd.layer === 2 ? '#7a5634' : (rd.layer === 1 ? '#6a4a2e' : '#5a3e2b');
-      for (let j=0; j<rd.h; j++) { const currentSway = sway * (j / rd.h); p(x + currentSway, y - j, j > rd.h / 2 ? green1 : green2); if (rd.layer > 0) p(x + currentSway - 1, y - j, green2); }
-      if (rd.type === 'cattail') { const topY = y - rd.h; const topSway = sway; r(x + topSway - 1, topY - 4, 2, 4, cattailColor); }
+      const sway = Math.sin(frame*0.035 + rd.seed) * (1.2 - rd.layer * 0.4);
+      const x = rd.x;
+      const y = waterY;
+      const green1 = rd.layer === 2 ? '#a3c95a' : (rd.layer === 1 ? '#7aa14a' : '#4b6b33');
+      const green2 = rd.layer === 2 ? '#7aa14a' : (rd.layer === 1 ? '#4b6b33' : '#3a5229');
+      const cattailColor = rd.layer === 2 ? '#7a5634' : (rd.layer === 1 ? '#6a4a2e' : '#5a3e2b');
+
+      // Draw the main stalk
+      for (let j = 0; j < rd.h; j++) {
+          const currentSway = sway * (j / rd.h);
+          p(x + currentSway, y - j, j > rd.h / 2 ? green1 : green2);
+          // Add a shadow/thickness
+          if (rd.layer > 0) p(x + currentSway - 1, y - j, green2);
+      }
+
+      // Add leaves for non-cattail reeds
+      if (rd.type !== 'cattail') {
+          const leafCount = Math.floor(rd.h / 8); // Add a leaf every 8 pixels of height
+          for (let i = 0; i < leafCount; i++) {
+              const leafY = y - (i * 8) - 4;
+              const leafSway = sway * ((H - leafY) / H);
+              const direction = (rd.seed * i) % 2 === 0 ? 1 : -1; // Alternate leaf direction
+              const leafLength = 3 + R(2);
+              for (let k = 0; k < leafLength; k++) {
+                  p(x + leafSway + (k * direction), leafY - k, green1);
+              }
+          }
+      }
+
+      // Draw cattail top
+      if (rd.type === 'cattail') {
+          const topY = y - rd.h;
+          const topSway = sway;
+          r(x + topSway - 1, topY - 4, 2, 4, cattailColor);
+      }
     });
   }
 
@@ -453,11 +549,24 @@
     const moonTheta = theta + Math.PI; const moonElev = Math.sin(moonTheta); const moonX = W/2 - (W/2) * Math.cos(moonTheta); const moonY = treeLineY - moonElev * (treeLineY);
     if (moonElev > 0 && moonY < treeLineY) { ctx.globalAlpha = 0.8 * Math.min(1, moonElev+0.2); pixelCircle(Math.round(moonX), Math.round(moonY), 2, '#dfe7ff'); ctx.globalAlpha = 0.4; pixelCircle(Math.round(moonX), Math.round(moonY), 4, '#dfe7ff'); ctx.globalAlpha = 1; }
     drawStars(sunElev);
+    
+    ctx.fillStyle = '#0b2330'; ctx.globalAlpha = 0.7; for (let i = 0; i < W; i++) r(i, treeLineY - treeLine[i], 1, treeLine[i] + 8);
+    
     drawClouds();
-    ctx.fillStyle = '#0b2330'; ctx.globalAlpha = 0.7; for (let i = 0; i < W; i++) r(i, treeLineY - treeLine[i], 1, treeLine[i] + 8); ctx.globalAlpha = 1;
+    
+    ctx.globalAlpha = 1;
     const waterY = H - (FOREGROUND_Y_OFFSET - 5);
     const waterHeight = FOREGROUND_Y_OFFSET - 5;
     const waterColor = getGradientColor(gameTime, waterStops); r(0, waterY, W, waterHeight, waterColor); for (let i=0;i<waterHeight;i++) { const yy = waterY + i; if (i%2===0) for (let x=0;x<W;x+=RI(6,12)) r(x + Math.sin((frame*0.04 + i)*0.8)*2.2, yy, RI(2,5), waterColor); }
+    
+    // Dynamic water highlights
+    const waterHighlight = `rgba(255,255,255,0.1)`;
+    for (let i=0; i < waterHeight; i+=2) {
+        const yy = waterY + i;
+        for (let x=0; x<W; x+=RI(10,20)) {
+            r(x + Math.sin((frame*0.06 + i)*0.5)*3.5, yy, RI(3,6), waterHighlight);
+        }
+    }
   }
 
   function drawDuck(d) {
@@ -476,9 +585,42 @@
       r(5, -5, 2, 1, '#eee');
       // Bill (dark)
       r(7, -5, 2, 1, '#333');
-      // Wing flaps (slow heavy beat)
-      const flapFrame = Math.floor(d.flap / 4); ctx.fillStyle = '#5f5446';
-      if (flapFrame === 0) { r(-4, -3, 8, 2); } else if (flapFrame === 1) { r(-5, -1, 10, 2); } else { r(-4, 1, 8, 2); }
+      
+      // Wing flaps (improved 4-frame animation)
+      const wing_dark = '#6b5d4f'; // Darker tone for main wing body
+      const wing_light = '#8c7d6b'; // Lighter tone for highlights
+      const flapFrame = Math.floor(d.flap / 3); // Creates 4 frames for a smoother cycle
+
+      switch (flapFrame) {
+          case 0: // Wings up
+              ctx.fillStyle = wing_dark;
+              r(-6, -4, 9, 3);
+              p(3, -3, wing_dark); p(4,-2, wing_dark);
+              ctx.fillStyle = wing_light;
+              r(-5, -4, 7, 1);
+              break;
+          case 1: // Wings out (powerful)
+              ctx.fillStyle = wing_dark;
+              r(-8, -1, 15, 2);
+              r(-7, 0, 13, 2);
+              ctx.fillStyle = wing_light;
+              r(-7, -1, 13, 1);
+              break;
+          case 2: // Wings down
+              ctx.fillStyle = wing_dark;
+              r(-6, 2, 9, 3);
+              p(3, 3, wing_dark); p(4,4, wing_dark);
+              ctx.fillStyle = wing_light;
+              r(-5, 2, 7, 1);
+              break;
+          case 3: // Recovery stroke
+              ctx.fillStyle = wing_dark;
+              r(-8, 0, 14, 2);
+              r(-6, 1, 11, 1);
+              ctx.fillStyle = wing_light;
+              r(-7, 0, 12, 1);
+              break;
+      }
     } else if (d.type === 'fast') {
       // slim body
       r(-5, 0, 9, 2, '#e04242'); r(3, -2, 2, 2, '#c82828'); r(5, -1, 2, 1, '#ffb86b');
@@ -589,7 +731,9 @@
     ducks = []; pellets = []; splashes = []; puffs = []; ripples = []; clouds = []; raindrops = []; dogs = [];
     frame = 0; weather = {raining:false, until:0}; starField = null; shotsFired = 0; prevAccuracy = null;
     if (rainGainNode && audioContext) rainGainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    generateTreeLine(); generateReeds(); generateFencerows();
+    generateTreeLine(); 
+    generateReeds(); 
+    generateFencerows();
     startNextLevel();
     // BUG FIX: Restart the animation loop
     requestAnimationFrame(update);
@@ -653,7 +797,8 @@
 
   function init() {
     hud.style.display = 'none';
-    introText1.textContent = 'Pixel Marsh'; introText2.textContent = '';
+    introText1.textContent = 'Rose & Scroll presents';
+    introText2.textContent = '';
     setTimeout(() => {
         introText1.textContent = 'Waterfowling';
         introText2.innerHTML = '<div class="mt-8 text-2xl opacity-80 animate-pulse">Tap anywhere to Start</div>';
