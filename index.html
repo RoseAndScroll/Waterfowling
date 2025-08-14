@@ -162,7 +162,7 @@
   const DUCK_SPAWN_BASE = 70;
   let   MAX_DUCKS_ON_SCREEN = 9;
   const PELLETS = 10;
-  const PELLET_SPEED = 9.0;
+  const PELLET_SPEED = 16.0; // Increased pellet speed
   const RECOIL_FRAMES = 8;
   const DAYLEN = 60 * 60;
   const HIT_R2 = 144;
@@ -324,12 +324,14 @@
     const L = Math.max(1, l); const t = clamp((L-1)/8, 0, 1); const e = easeOut(t);
     const spawnInterval = Math.round(clamp(DUCK_SPAWN_BASE - 52*e - 5*L, 14, 70));
     const maxOnScreen  = clamp(7 + Math.floor(L*0.75), 7, 14);
-    let fastProb = L < 2 ? 0.10 * L : clamp(0.15 + 0.08*(L-2) + 0.25*e, 0.15, 0.80);
-    if (acc != null && acc < 0.35) fastProb = Math.max(0.08, fastProb - 0.04);
+    // Reduced probability of fast (red) ducks
+    let fastProb = L < 2 ? 0.05 * L : clamp(0.08 + 0.05*(L-2) + 0.15*e, 0.08, 0.50);
+    if (acc != null && acc < 0.35) fastProb = Math.max(0.05, fastProb - 0.04); // Further reduce if accuracy is low
     const gooseProb = clamp(0.01 + 0.004*L, 0.01, 0.05);
-    const speedNormal = clamp(1.85 + 0.05*L + 0.30*e, 1.85, 3.00);
-    const speedFast   = clamp(2.60 + 0.06*L + 0.35*e, 2.60, 3.50);
-    const speedGoose  = clamp(1.60 + 0.03*L + 0.20*e, 1.60, 2.60);
+    // Increased speed scaling with levels
+    const speedNormal = clamp(1.85 + 0.08*L + 0.50*e, 1.85, 3.50);
+    const speedFast   = clamp(2.60 + 0.10*L + 0.60*e, 2.60, 4.20);
+    const speedGoose  = clamp(1.60 + 0.05*L + 0.40*e, 1.60, 3.00);
     const ducksNeeded = clamp(5 + Math.round(1.9*L + 2.3*e), 5, 28);
     let ammoBuffer = 1; if (acc != null) { if (acc < 0.35) ammoBuffer = 4; else if (acc < 0.5) ammoBuffer = 3; else if (acc > 0.8) ammoBuffer = 0; }
     return { spawnInterval, maxOnScreen, fastProb, gooseProb, speedNormal, speedFast, speedGoose, ducksNeeded, ammoBuffer };
@@ -366,7 +368,8 @@
     const ang = Math.atan2(dy, dx);
     for (let i=0;i<PELLETS;i++) {
       const spread = (Math.random()-0.5) * 0.20;
-      pellets.push({ x: gunTipX, y: gunTipY, vx: Math.cos(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), vy: Math.sin(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), life: 70 });
+      // Increased pellet life for longer range
+      pellets.push({ x: gunTipX, y: gunTipY, vx: Math.cos(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), vy: Math.sin(ang + spread) * PELLET_SPEED * (0.9 + R(0.3)), life: 90 });
     }
   }
 
@@ -874,7 +877,6 @@
     }
   }
 
-  // --- MODIFICATION 1: Cleaned up startGame function ---
   function startGame(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     userGestureAudioUnlock(); // This is the crucial call to enable audio
@@ -917,8 +919,6 @@
     setTimeout(() => {
         introText1.textContent = 'Waterfowling';
         introText2.innerHTML = '<div class="mt-8 text-2xl opacity-80 animate-pulse">Tap anywhere to Start</div>';
-        // --- MODIFICATION 2: Changed event listener for robustness ---
-        // Attaching a 'click' listener to the overlay itself is the most reliable way.
         introOverlay.addEventListener('click', startGame, { once: true });
         window.addEventListener('keydown', startGame, { once: true });
     }, 2500);
